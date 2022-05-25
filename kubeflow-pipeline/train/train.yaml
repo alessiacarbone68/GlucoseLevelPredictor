@@ -1,0 +1,17 @@
+name: Train LSTM
+description: Trains a LSTM network
+
+inputs:
+- {name: Patient, type: String, description: 'Patient Id.'}
+- {name: Model, type: LocalPath, description: 'Path to store the model.'}
+
+implementation:
+  container:
+    image: almarounisa/diabetes_train:latest
+    command: [
+      python, train.py,
+      --patient,
+      {inputPath: Patient},
+      --model,
+      {inputPath: Model},
+    ]

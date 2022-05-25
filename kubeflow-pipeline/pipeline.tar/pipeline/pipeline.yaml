@@ -1,0 +1,73 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: train-pipeline-
+  annotations: {pipelines.kubeflow.org/kfp_sdk_version: 1.8.12, pipelines.kubeflow.org/pipeline_compilation_time: '2022-05-22T13:06:02.733508',
+    pipelines.kubeflow.org/pipeline_spec: '{"description": "Load patient data and
+      trains the LSTM model.", "name": "Train Pipeline"}'}
+  labels: {pipelines.kubeflow.org/kfp_sdk_version: 1.8.12}
+spec:
+  entrypoint: train-pipeline
+  templates:
+  - name: load-data
+    container:
+      args: []
+      command: [python, load_data.py, --patient, /tmp/inputs/Patient/data, --output,
+        /tmp/outputs/TrainData/data]
+      image: almarounisa/diabetes_load:latest
+    inputs:
+      artifacts:
+      - name: Patient
+        path: /tmp/inputs/Patient/data
+        raw: {data: '540'}
+    outputs:
+      artifacts:
+      - {name: load-data-TrainData, path: /tmp/outputs/TrainData/data}
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.12
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+      annotations: {pipelines.kubeflow.org/component_spec: '{"description": "Loads
+          patient''s data", "implementation": {"container": {"command": ["python",
+          "load_data.py", "--patient", {"inputPath": "Patient"}, "--output", {"outputPath":
+          "TrainData"}], "image": "almarounisa/diabetes_load:latest"}}, "inputs":
+          [{"description": "Id of the patient.", "name": "Patient", "type": "String"}],
+          "name": "Load Data", "outputs": [{"description": "Path to the patient train
+          data.", "name": "TrainData", "type": "LocalPath"}]}', pipelines.kubeflow.org/component_ref: '{"digest":
+          "29d3be9bbeeaf611ebd91ad54215855c0b4a3f0022927ad27cb47e9810b011af", "url":
+          "kubeflow-pipeline/load_data/load_data.yaml"}'}
+  - name: train-lstm
+    container:
+      args: []
+      command: [python, train.py, --patient, /tmp/inputs/Patient/data, --model, /tmp/inputs/Model/data]
+      image: almarounisa/diabetes_train:latest
+    inputs:
+      artifacts:
+      - name: Model
+        path: /tmp/inputs/Model/data
+        raw: {data: models}
+      - name: Patient
+        path: /tmp/inputs/Patient/data
+        raw: {data: '540'}
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.12
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+      annotations: {pipelines.kubeflow.org/component_spec: '{"description": "Trains
+          a LSTM network", "implementation": {"container": {"command": ["python",
+          "train.py", "--patient", {"inputPath": "Patient"}, "--model", {"inputPath":
+          "Model"}], "image": "almarounisa/diabetes_train:latest"}}, "inputs": [{"description":
+          "Patient Id.", "name": "Patient", "type": "String"}, {"description": "Path
+          to store the model.", "name": "Model", "type": "LocalPath"}], "name": "Train
+          LSTM"}', pipelines.kubeflow.org/component_ref: '{"digest": "6aab93261e29cad5981da3d2d2ce7bb70543891a33d0fecfbe6a6185bb7d221f",
+          "url": "kubeflow-pipeline/train/train.yaml"}'}
+  - name: train-pipeline
+    dag:
+      tasks:
+      - {name: load-data, template: load-data}
+      - {name: train-lstm, template: train-lstm}
+  arguments:
+    parameters: []
+  serviceAccountName: pipeline-runner
